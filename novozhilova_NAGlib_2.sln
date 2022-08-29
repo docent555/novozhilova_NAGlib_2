@@ -7,12 +7,18 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "novozhilova_NAGlib_2", "nov
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Debug|x64.ActiveCfg = Debug|x64
+		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Debug|x64.Build.0 = Debug|x64
 		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Debug|x86.ActiveCfg = Debug|Win32
 		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Debug|x86.Build.0 = Debug|Win32
+		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Release|x64.ActiveCfg = Release|x64
+		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Release|x64.Build.0 = Release|x64
 		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Release|x86.ActiveCfg = Release|Win32
 		{E233077C-FE0C-494C-9B9F-E8AC9CFC8585}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
