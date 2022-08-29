@@ -23,6 +23,6 @@
  dt = 0.05
  dz = 0.01
  pitch = 1.6
- ftol = 1e-3
+ ftol = 1e-7
  ptol = 1e-7
  /

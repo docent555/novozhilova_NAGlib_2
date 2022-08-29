@@ -274,7 +274,7 @@ contains
         fp(1) = fpex(1)*exp(ic*fpex(2))
         fp(2) = fpex(3)*exp(ic*fpex(4))
 
-        call d02pcf(dpdz, zwant, zgot, pex, ppgot, pmax, workp, ifailp)
+        call d02pcf(dpdz, zex, zgot, pex, ppgot, pmax, workp, ifailp)
 
     end subroutine calcpex
 
@@ -646,8 +646,9 @@ contains
             imon = -2
         else
             !write (nout, 99999) xout, (r(i), i=1, n)
-            !call calcpex(r, pex)
-            eta(:, it) = eff(p(:, nz))
+            call calcpex(r, pex)
+            !eta(:, it) = eff(p(:, nz))
+            eta(:, it) = eff(pex)
             etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
        write (*, '(a,f12.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,\,a)') 'time = ', xout, '   |f1| = ', r(1), '   |f2| = ', r(3), &
                 '   |f3| = ', r(5), '   eff1 = ', eta(1, it), '   eff2 = ', eta(2, it), char(13)
