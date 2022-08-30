@@ -268,7 +268,7 @@ contains
         integer(c_int) i
         real(c_double) :: zwant, zgot, pex(neqp)
         real(c_double) fpex(6)
-    
+
         call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
 
         fp(1) = fpex(1)*exp(ic*fpex(2))
@@ -628,9 +628,9 @@ contains
         logical(4) pressed
         character(1) key
         integer(c_int), parameter :: esc = 27
-        
+
         real(c_double) pex(neqp)
-        
+
         !..external subroutines..
         external d02xkf
         !..common blocks..
@@ -649,9 +649,9 @@ contains
             call calcpex(r, pex)
             !eta(:, it) = eff(p(:, nz))
             eta(:, it) = eff(pex)
-            etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
-       write (*, '(a,f12.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,\,a)') 'time = ', xout, '   |f1| = ', r(1), '   |f2| = ', r(3), &
-                '   |f3| = ', r(5), '   eff1 = ', eta(1, it), '   eff2 = ', eta(2, it), char(13)
+            etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)           
+            write (*, '(a,f12.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,\,a)') 'time = ', xout, &
+            '   |f1| = ', r(1), '   |f2| = ', r(3), '   |f3| = ', r(5), '   eff1 = ', eta(1, it), '   eff2 = ', eta(2, it), char(13)
             do j = 1, n
                 f(j, it) = r(j)
             end do
