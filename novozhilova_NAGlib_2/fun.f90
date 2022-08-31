@@ -523,7 +523,8 @@ contains
 
         real(c_double) x1r, x1i, q31, i1, r1, th1, dcir1, cos1, sin1, &
             x2r, x2i, q32, i2, r2, th2, dcir2, cos2, sin2, q333, &
-            f1, f2, f3, phi1, phi2, phi3, a1, a2, ph311, ph322, phi13, phi23
+            f1, f2, f3, phi1, phi2, phi3, a1, a2, ph311, ph322, phi13, phi23, &
+            sin311, sin322, cos311, cos322, cos13, sin13, cos23, sin23
         complex(c_double_complex) x1, x2
 
         hxd = h*d
@@ -557,54 +558,63 @@ contains
         th2 = th(2)
         dcir2 = dcir(2)
         cos2 = dcos(phi2)
-        sin2 = dsin(phi2)
+        sin2 = dsin(phi2)                
 
         ph311 = phi3 - phi1 - th1
         ph322 = phi3 - phi2 - th2
         phi13 = phi1 - phi3
         phi23 = phi2 - phi3
+        
+        sin311 = dsin(ph311)
+        sin322 = dsin(ph322)
+        cos311 = dcos(ph311)
+        cos322 = dcos(ph322)
+        cos13 = dcos(phi13)
+        sin13 = dsin(phi13)
+        cos23 = dcos(phi23)
+        sin23 = dsin(phi23)
 
         pp(1, 1) = 1.0d0 + hxd*q31*ng
-        pp(1, 2) = -hxd*q31*(i1*(x1i*sin1 + x1r*cos1) + 2*ng*r1*f3*dsin(ph311))
+        pp(1, 2) = -hxd*q31*(i1*(x1i*sin1 + x1r*cos1) + 2*ng*r1*f3*sin311)
         !pp(1,3) = 0
         !pp(1,4) = 0
-        pp(1, 5) = -hxd*2*ng*r1*q31*dcos(ph311)
-        pp(1, 6) = hxd*(2*ng*r1*q31*f3*dsin(ph311))
+        pp(1, 5) = -hxd*2*ng*r1*q31*cos311
+        pp(1, 6) = hxd*(2*ng*r1*q31*f3*sin311)
 
-        pp(2, 1) = hxd*(q31/f1**2*(i1*(x1r*cos1 - x1i*sin1) + 2*ng*r1*f3*dsin(ph311)))
-        pp(2, 2) = 1.0d0 - hxd*(q31/f1*(i1*(-x1r*sin1 + x1i*cos1) - 2*ng*r1*f3*dcos(ph311)))
+        pp(2, 1) = hxd*(q31/f1**2*(i1*(x1r*cos1 - x1i*sin1) + 2*ng*r1*f3*sin311))
+        pp(2, 2) = 1.0d0 - hxd*(q31/f1*(i1*(-x1r*sin1 + x1i*cos1) - 2*ng*r1*f3*cos311))
         !pp(2,3) = 0
         !pp(2,4) = 0
-        pp(2, 5) = -hxd*2*ng*r1*q31/f1*dsin(ph311)
-        pp(2, 6) = -hxd*2*ng*r1*q31*f3/f1*dcos(ph311)
+        pp(2, 5) = -hxd*2*ng*r1*q31/f1*sin311
+        pp(2, 6) = -hxd*2*ng*r1*q31*f3/f1*cos311
 
         !pp(3,1) = 0
         !pp(3,2) = 0
         pp(3, 3) = 1.0d0 + hxd*q32*ng
-        pp(3, 4) = -hxd*q32*(i2*(x2i*sin2 + x2r*cos2) + 2*ng*r2*f3*dsin(ph322))
-        pp(3, 5) = -hxd*2*r2*q32*dcos(ph322)*ng
-        pp(3, 6) = hxd*(2*r2*q32*f3*dsin(ph322))*ng
+        pp(3, 4) = -hxd*q32*(i2*(x2i*sin2 + x2r*cos2) + 2*ng*r2*f3*sin322)
+        pp(3, 5) = -hxd*2*r2*q32*cos322*ng
+        pp(3, 6) = hxd*(2*r2*q32*f3*sin322)*ng
 
         !pp(4,1) = 0
         !pp(4,2) = 0
-        pp(4, 3) = hxd*(q32/f2**2*(i2*(x2r*cos2 + x2i*sin2) + 2*ng*r2*f3*dsin(ph322)))
-        pp(4, 4) = 1.0d0 - hxd*(q32/f2*(i2*(-x2r*sin2 + x2i*cos2) - 2*ng*r2*f3*dcos(ph322)))
-        pp(4, 5) = -hxd*2*ng*r2*q32/f2*dsin(ph322)
-        pp(4, 6) = -hxd*2*ng*r2*q32*f3/f2*dcos(ph322)
+        pp(4, 3) = hxd*(q32/f2**2*(i2*(x2r*cos2 + x2i*sin2) + 2*ng*r2*f3*sin322))
+        pp(4, 4) = 1.0d0 - hxd*(q32/f2*(i2*(-x2r*sin2 + x2i*cos2) - 2*ng*r2*f3*cos322))
+        pp(4, 5) = -hxd*2*ng*r2*q32/f2*sin322
+        pp(4, 6) = -hxd*2*ng*r2*q32*f3/f2*cos322
 
-        pp(5, 1) = -hxd*a1*dcos(phi13)
-        pp(5, 2) = hxd*a1*f1*dsin(phi13)
-        pp(5, 3) = -hxd*a2*dcos(phi23)
-        pp(5, 4) = hxd*a2*f2*dsin(phi23)
+        pp(5, 1) = -hxd*a1*cos13
+        pp(5, 2) = hxd*a1*f1*sin13
+        pp(5, 3) = -hxd*a2*cos23
+        pp(5, 4) = hxd*a2*f2*sin23
         pp(5, 5) = 1.0d0 - hxd
-        pp(5, 6) = -hxd*(a1*f1*dsin(phi13) + a2*f2*dsin(phi23))
+        pp(5, 6) = -hxd*(a1*f1*sin13 + a2*f2*sin23)
 
-        pp(6, 1) = -hxd*a1/f3*dsin(phi13)
-        pp(6, 2) = -hxd*a1*f1/f3*dcos(phi13)
-        pp(6, 3) = -hxd*a2/f3*dsin(phi23)
-        pp(6, 4) = -hxd*a2*f2/f3*dcos(phi23)
-        pp(6, 5) = hxd/f3**2*(a1*f1*dsin(phi13) + a2*f2*dsin(phi23))
-        pp(6, 6) = 1.0d0 - hxd*(-a1*f1/f3*dcos(phi13) - a2*f2/f3*dcos(phi23))
+        pp(6, 1) = -hxd*a1/f3*sin13
+        pp(6, 2) = -hxd*a1*f1/f3*cos13
+        pp(6, 3) = -hxd*a2/f3*sin23
+        pp(6, 4) = -hxd*a2*f2/f3*cos23
+        pp(6, 5) = hxd/f3**2*(a1*f1*sin13 + a2*f2*sin23)
+        pp(6, 6) = 1.0d0 - hxd*(-a1*f1/f3*cos13 - a2*f2/f3*cos23)
 
         return
     end
