@@ -564,39 +564,39 @@ contains
         phi13 = phi1 - phi3
         phi23 = phi2 - phi3
 
-        pp(1, 1) = 1.0d0 + hxd*(q31)*ng
+        pp(1, 1) = 1.0d0 + hxd*q31*ng
         pp(1, 2) = -hxd*q31*(i1*(x1i*sin1 + x1r*cos1) + 2*ng*r1*f3*dsin(ph311))
         !pp(1,3) = 0
         !pp(1,4) = 0
-        pp(1, 5) = -hxd*2*r1*q31*dcos(ph311)*ng
-        pp(1, 6) = -hxd*(-2*r1*q31*f3*dsin(ph311))*ng
+        pp(1, 5) = -hxd*2*ng*r1*q31*dcos(ph311)
+        pp(1, 6) = hxd*(2*ng*r1*q31*f3*dsin(ph311))
 
-        pp(2, 1) = -hxd*(-q31/f1**2*(i1*(x1r*cos1 + x1i*sin1) + 2*ng*r1*f3*dsin(ph311)))
+        pp(2, 1) = hxd*(q31/f1**2*(i1*(x1r*cos1 - x1i*sin1) + 2*ng*r1*f3*dsin(ph311)))
         pp(2, 2) = 1.0d0 - hxd*(q31/f1*(i1*(-x1r*sin1 + x1i*cos1) - 2*ng*r1*f3*dcos(ph311)))
         !pp(2,3) = 0
         !pp(2,4) = 0
-        pp(2, 5) = -hxd*2*r1*q31/f1*dsin(ph311)*ng
-        pp(2, 6) = -hxd*2*r1*q31*f3/f1*dcos(ph311)*ng
+        pp(2, 5) = -hxd*2*ng*r1*q31/f1*dsin(ph311)
+        pp(2, 6) = -hxd*2*ng*r1*q31*f3/f1*dcos(ph311)
 
         !pp(3,1) = 0
         !pp(3,2) = 0
         pp(3, 3) = 1.0d0 + hxd*q32*ng
         pp(3, 4) = -hxd*q32*(i2*(x2i*sin2 + x2r*cos2) + 2*ng*r2*f3*dsin(ph322))
         pp(3, 5) = -hxd*2*r2*q32*dcos(ph322)*ng
-        pp(3, 6) = -hxd*(-2*r2*q32*f3*dsin(ph322))*ng
+        pp(3, 6) = hxd*(2*r2*q32*f3*dsin(ph322))*ng
 
         !pp(4,1) = 0
         !pp(4,2) = 0
-        pp(4, 3) = -hxd*(-q32/f2**2*(i2*(x2r*cos2 + x2i*sin2) + 2*ng*r2*f3*dsin(ph322)))
+        pp(4, 3) = hxd*(q32/f2**2*(i2*(x2r*cos2 + x2i*sin2) + 2*ng*r2*f3*dsin(ph322)))
         pp(4, 4) = 1.0d0 - hxd*(q32/f2*(i2*(-x2r*sin2 + x2i*cos2) - 2*ng*r2*f3*dcos(ph322)))
-        pp(4, 5) = -hxd*2*r2*q32/f2*dsin(ph322)*ng
-        pp(4, 6) = -hxd*2*r2*q32*f3/f2*dcos(ph322)*ng
+        pp(4, 5) = -hxd*2*ng*r2*q32/f2*dsin(ph322)
+        pp(4, 6) = -hxd*2*ng*r2*q32*f3/f2*dcos(ph322)
 
         pp(5, 1) = -hxd*a1*dcos(phi13)
         pp(5, 2) = hxd*a1*f1*dsin(phi13)
         pp(5, 3) = -hxd*a2*dcos(phi23)
         pp(5, 4) = hxd*a2*f2*dsin(phi23)
-        pp(5, 5) = 1.0d0 + hxd
+        pp(5, 5) = 1.0d0 - hxd
         pp(5, 6) = -hxd*(a1*f1*dsin(phi13) + a2*f2*dsin(phi23))
 
         pp(6, 1) = -hxd*a1/f3*dsin(phi13)
@@ -650,8 +650,8 @@ contains
             !eta(:, it) = eff(p(:, nz))
             eta(:, it) = eff(pex)
             etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)           
-            write (*, '(a,f12.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,a,f10.7,\,a)') 'time = ', xout, &
-            '   |f1| = ', r(1), '   |f2| = ', r(3), '   |f3| = ', r(5), '   eff1 = ', eta(1, it), '   eff2 = ', eta(2, it), char(13)
+            write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,\,a)') 't =', xout, &
+            '  |f1| =', r(1), '  |f2| =', r(3), '  |f3| =', r(5), '  e1 =', eta(1, it), '  e2 =', eta(2, it), '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), char(13)
             do j = 1, n
                 f(j, it) = r(j)
             end do
