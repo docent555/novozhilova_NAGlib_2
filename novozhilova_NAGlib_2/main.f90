@@ -1,39 +1,39 @@
 program sys15f
-    use, intrinsic :: iso_c_binding
-    use fun
-    use ifport
+   use, intrinsic :: iso_c_binding
+   use fun
+   use ifport
 
-    implicit none
+   implicit none
 
-    integer(c_int) i, j, hours, minutes, seconds
-    real(c_double) start_time, stop_time, calc_time
-    complex(c_double_complex) pc
+   integer(c_int) i, j, hours, minutes, seconds
+   real(c_double) start_time, stop_time, calc_time
+   complex(c_double_complex) pc
 
-    call init()
+   call init()
 
-    do i = 1, ne
-        p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-        p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-        p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-        p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-    end do
+   do i = 1, ne
+      p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
+      p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
+      p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
+      p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
+   end do
 
-    write (*, '(/)')
+   write (*, '(/)')
 
-    start_time = dclock()
-    call ode4f()
-    stop_time = dclock()
+   start_time = dclock()
+   call ode4f()
+   stop_time = dclock()
 
-    calc_time = stop_time - start_time
+   calc_time = stop_time - start_time
 
-    hours = calc_time/3600
-    minutes = (calc_time - hours*3600)/60
-    seconds = calc_time - hours*3600 - minutes*60
+   hours = calc_time/3600
+   minutes = (calc_time - hours*3600)/60
+   seconds = calc_time - hours*3600 - minutes*60
 
-    write (*, '(/)')
-    print *, 'Calcualting took:', hours, 'h :', minutes, 'm :', seconds, 's'
+   write (*, '(/)')
+   print *, 'Calcualting took:', hours, 'h :', minutes, 'm :', seconds, 's'
 
-    call write_results()
+   call write_results()
 
 !    do i = 2, nt
 !        do j = 1, 3
@@ -135,5 +135,6 @@ program sys15f
 !    stop
 !103 print *, 'error of file writing.'
 !    pause
-!    stop
+
+   stop
 end program
