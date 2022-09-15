@@ -407,7 +407,7 @@ contains
       real(c_double), intent(in) :: pex(:)
 
       do i = 1, 2
-         eta(i) = 1 - sum(abs(dcmplx(pex(idxre(i, :)), pex(idxim(i, :))))**2)/ne
+         eta(i) = 1 - sum(cdabs(dcmplx(pex(idxre(i, :)), pex(idxim(i, :))))**2)/ne
       end do
    end function eff
 
