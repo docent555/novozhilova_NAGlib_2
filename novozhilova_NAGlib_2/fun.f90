@@ -3,7 +3,7 @@ module fun
    use ifcore
 
    integer(c_int) ne, nt, nz, freq_out, neqp, lenwrk, l, method, neqf, lwork, liwork, nrd, it, ifailp
-   real(c_double) zex, dz, tend, dtr(2), q(3), i(2), th(2), a(2), dcir(2), r(2), &
+   real(c_double) zex, dz, tend, dtr(2), q(3), icu(2), th(2), a(2), dcir(2), r(2), &
       f0(3), dt, pitch, f10, f20, f30, p10, p20, p30, ftol, ptol, hstart, zstart, xout, ng
    complex(c_double_complex) fp(2)
    logical(c_bool) errass
@@ -14,11 +14,11 @@ module fun
    real(c_double) phitmp0(3), phitmp1(3)
    complex(c_double_complex) fc, fcomp(3)
 
-   integer(c_int), allocatable, target :: idxre(:, :), idxim(:, :), iwork(:)
+   integer(c_int), allocatable, target :: idxre(:, :), idxim(:, :), iwork(:), idxp(:, :)
    complex(c_double_complex), allocatable, target :: mean(:)
    real(c_double), allocatable, target :: tax(:), zax(:), u(:), eta(:, :), etag(:, :), w(:, :), f(:, :), p(:, :), &
                                           phi(:, :), phios(:, :), wos(:, :), &
-                                          pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:)
+                                          pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:), dp2dz(:, :), mean2(:, :), cl(:), lhs(:), rhs(:)
 
    complex(c_double_complex), parameter :: ic = (0.0d0, 1.0d0)
    real(c_double), parameter :: pi = 2.0d0*dacos(0.0d0)
@@ -78,6 +78,9 @@ contains
          idxim(ii, :) = (/(2*ii - 1)*ne + 1:2*ii*ne/)
       end do
 
+      idxp(1, :) = (/1:ne/)
+      idxp(2, :) = (/ne + 1:2*ne/)
+
       ng = 2
 
    end subroutine init
@@ -90,7 +93,7 @@ contains
 
       allocate (f(6, nt), p(neqp, nz), u(nz), tax(nt), zax(nz), mean(nz), eta(2, nt), etag(2, nt), w(3, nt - 1), &
                 idxre(2, ne), idxim(2, ne), pgot(neqp), ppgot(neqp), pmax(neqp), thres(neqp), workp(lenwrk), work(lwork), &
-                iwork(liwork), wos(3, nt - 1), phi(3, nt), phios(3, nt), stat=err_alloc)
+        iwork(liwork), wos(3, nt - 1), phi(3, nt), phios(3, nt), dp2dz(2*ne, nz), idxp(2, ne), mean2(2, nz - 1), cl(nt), lhs(nt), rhs(nt), stat=err_alloc)
 
       if (err_alloc /= 0) then
          print *, "allocation error"
@@ -131,8 +134,8 @@ contains
       q(1) = q1
       q(2) = q2
       q(3) = q3
-      i(1) = i1
-      i(2) = i2
+      icu(1) = i1
+      icu(2) = i2
       th(1) = th1
       th(2) = th2
       a(1) = a1
@@ -160,9 +163,9 @@ contains
          dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol
 
       real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2
-      
+
       open (unit=1, file='input_fortran.in', status='old', err=101)
-      print *, 'OK1'
+      !print *, 'OK1'
       read (unit=1, nml=param, err=102)
       close (unit=1)
 
@@ -174,7 +177,7 @@ contains
       p30 = mod(f(6, nt), 2*pi)
 
       open (unit=1, file='input_fortran_next.in', err=101)
-      print *, 'OK2'
+      !print *, 'OK2'
       write (1, nml=param)
       close (unit=1)
 
@@ -231,6 +234,12 @@ contains
       write (*, '(/)')
 
       pause
+      
+      open (3, file='cl.dat')
+      do i = 1, nt
+         write (3, '(4e17.8)') tax(i), cl(i), lhs(i), rhs(i)
+      end do
+      close (3)
 
       open (1, file='F.dat')
       do i = 1, nt
@@ -278,10 +287,10 @@ contains
       do i = 1, nt - 1
          write (3, '(4e17.8)') tax(i + 1), wos(1, i), wos(2, i), wos(3, i)
       end do
-      close (3)
+      close (3)            
 
       call write_param()
-      
+
       stop
 
 101   print *, 'error of file open.'
@@ -295,13 +304,15 @@ contains
       stop
    end subroutine write_results
 
-   subroutine calcpex(fpex, pex)
+   subroutine calcpex(fpex, pex, c, lhs, rhs)
 
       implicit none
+      
+      real(8), intent(inout) :: c, lhs, rhs
 
-      integer(c_int) i
-      real(c_double) :: zwant, zgot, pex(neqp)
-      real(c_double) fpex(6)
+      integer(c_int) i, idx(ne)
+      real(c_double) :: zwant, zgot, pex(neqp), fpex(6), p2ex_mean(2), p20_mean(2)
+      complex(8) ptmp(ne)
 
       call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
 
@@ -309,6 +320,21 @@ contains
       fp(2) = fpex(3)*cdexp(ic*fpex(4))
 
       call d02pcf(dpdz, zex, zgot, pex, ppgot, pmax, workp, ifailp)
+      
+      do i = 1, 2
+            idx = idxp(i, :)
+            
+            ptmp(:) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))            
+            p20_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
+            
+            ptmp(:) = dcmplx(pex(idxre(i, :)), pex(idxim(i, :)))            
+            p2ex_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
+      end do
+      
+      lhs = 4*fpex(1)**2 - 8*r(1)*fpex(5)*fpex(1)*dcos(th(1)-fpex(6)+fpex(2))
+      rhs = -icu(1)*(p2ex_mean(1) - p20_mean(1))
+      
+      c = lhs - rhs
 
    end subroutine calcpex
 
@@ -339,7 +365,8 @@ contains
       fp(2) = f(3, 1)*cdexp(ic*f(4, 1))
 
       do i = 1, nz - 1
-         zwant = i*dz
+         !zwant = i*dz
+         zwant = zax(i + 1)
          call d02pcf(dpdz, zwant, zgot, pgot, ppgot, pmax, workp, ifailp)
 
          if (ifailp .ne. 0) then
@@ -351,14 +378,21 @@ contains
 
          p(:, i + 1) = pgot
       end do
-99998 format(1x, a, i2, a, d12.5)
-
-      eta(:, 1) = eff(p(:, nz))
-      etag(:, 1) = pitch**2/(pitch**2 + 1)*eta(:, 1)
+99998 format(1x, a, i2, a, d12.5)      
+            
+      eta(:, 1) = eff(p(:, nz))      
+      etag(:, 1) = pitch**2/(pitch**2 + 1.0d0)*eta(:, 1)
+      
+      !open (1, file='test2.dat')
+      !do i = 1, ne
+      !    write(1,'(i,f17.8)') i, p(idxim(1,i),nz)
+      !end do
+      !close (1)
+      !stop
 
       call d02nvf(neqmax, ny2dim, maxord, 'newton', petzld, const, tcrit, hmin, hmax, &
                   h0, maxstp, mxhnil, 'average-l2', rwork, ifailf)
-      call d02nsf(neq, neqmax, 'n', nwkjac, rwork, ifailf)
+      call d02nsf(neq, neqmax, 'a', nwkjac, rwork, ifailf)
 
       t = 0.0d0
       tout = tend
@@ -409,6 +443,14 @@ contains
       do i = 1, 2
          eta(i) = 1 - sum(cdabs(dcmplx(pex(idxre(i, :)), pex(idxim(i, :))))**2)/ne
       end do
+      
+      !open(1, file='test1.dat')
+      !do i=1,ne
+      !   write(1,'(i,f17.8)') i, pex(i)
+      !enddo
+      !close(1)
+      !stop
+      
    end function eff
 
    subroutine dpdz(z, p, prhs)
@@ -449,7 +491,9 @@ contains
       mean = u*mean
       !mean = dconjg(u)*mean
 
-      xi = (0.5d0*(mean(1) + mean(2)) + sum(mean(2:nz - 1)))*dz
+      !xi1 = (0.5d0*(mean(1) + mean(2)) + sum(mean(2:nz - 1)))*dz
+      xi = (0.5d0*(mean(1) + mean(nz)) + sum(mean(2:(nz - 1))))*dz
+
    end function
 
    subroutine dfdt(neqf, t, f, s, ires) ! nag
@@ -460,7 +504,7 @@ contains
          x1r, x1i, q31, i1, r1, th1, dcir1, cos1, sin1, &
          x2r, x2i, q32, i2, r2, th2, dcir2, cos2, sin2, q3, &
          f1, f2, f3, phi1, phi2, phi3, a1, a2, zwant, zgot, e1, e2
-      complex(c_double_complex) x1, x2     
+      complex(c_double_complex) x1, x2
       logical bp
 
       call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
@@ -483,6 +527,15 @@ contains
          p(:, jj + 1) = pgot
       end do
 
+      !if (t>10) then
+      !open (1, file='test.dat')
+      !do jj = 1, nz
+      !    write(1,'(3f17.8)') zax(jj), p(100,jj), p(105,jj)
+      !end do
+      !close (1)
+      !stop
+      !endif
+
       x1 = xi(p(1:2*ne, :), 1)
       x2 = xi(p(2*ne + 1:4*ne, :), 1)
 
@@ -499,7 +552,7 @@ contains
       phi3 = f(6)
 
       q31 = q(3)/q(1)
-      i1 = i(1)
+      i1 = icu(1)
       r1 = r(1)
       th1 = th(1)
       dcir1 = dcir(1)
@@ -507,7 +560,7 @@ contains
       sin1 = dsin(f(2))
 
       q32 = q(3)/q(2)
-      i2 = i(2)
+      i2 = icu(2)
       r2 = r(2)
       th2 = th(2)
       dcir2 = dcir(2)
@@ -525,8 +578,8 @@ contains
       s(4) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*ng*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
 
       s(5) = -f3 + a1*f1*dcos(phi1 - phi3) + a2*f2*dcos(phi2 - phi3)
-      s(6) = a1*f1/f3*dsin(phi1 - phi3) + a2*f2/f3*dsin(phi2 - phi3)      
-      
+      s(6) = a1*f1/f3*dsin(phi1 - phi3) + a2*f2/f3*dsin(phi2 - phi3)
+
    end subroutine dfdt
 
    subroutine calc_u(u, zex, nz, zax)
@@ -580,7 +633,7 @@ contains
       phi3 = y(6)
 
       q31 = q(3)/q(1)
-      i1 = i(1)
+      i1 = icu(1)
       r1 = r(1)
       th1 = th(1)
       dcir1 = dcir(1)
@@ -588,7 +641,7 @@ contains
       sin1 = dsin(phi1)
 
       q32 = q(3)/q(2)
-      i2 = i(2)
+      i2 = icu(2)
       r2 = r(2)
       th2 = th(2)
       dcir2 = dcir(2)
@@ -691,13 +744,12 @@ contains
          imon = -2
       else
          !write (nout, 99999) xout, (r(i), i=1, n)
-         call calcpex(r, pex)
-         !eta(:, it) = eff(p(:, nz))
+         call calcpex(r, pex, cl(it), lhs(it), rhs(it))
          eta(:, it) = eff(pex)
          etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
-         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,\,a)') 't =', xout, &
+         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,\,a)') 't =', xout, &
             '  |f1| =', r(1), '  |f2| =', r(3), '  |f3| =', r(5), '  e1 =', eta(1, it), '  e2 =', eta(2, it), &
-            '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), char(13)
+            '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c.l. =', cl(it), '  lhs =', lhs(it), '  rhs =', rhs(it), char(13)
          do j = 1, n
             f(j, it) = r(j)
          end do
@@ -724,5 +776,62 @@ contains
 
 99999 format(1x, f8.3, 6(f13.5, 2x))
    end subroutine monitr
+
+!   subroutine zs(f, c, lhs, rhs)
+!
+!      implicit none
+!
+!      real(8), intent(in) :: f(neqf)
+!      real(8), intent(inout) :: c, lhs, rhs
+!
+!      integer(4) j, i, idx(ne)
+!      real(c_double) :: zwant, zgot
+!      complex(c_double_complex) ptmp(2, ne), ptmp_old(2, ne)
+!
+!      fp(1) = f(1)*cdexp(ic*f(2))
+!      fp(2) = f(3)*cdexp(ic*f(4))
+!
+!      call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
+!
+!      do i = 1, 2
+!         ptmp_old(i, :) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))
+!      end do
+!
+!      do j = 1, nz - 1
+!         zwant = zax(j + 1)
+!         call d02pcf(dpdz, zwant, zgot, pgot, ppgot, pmax, workp, ifailp)
+!
+!         if (ifailp .ne. 0) then
+!            write (*, *)
+!            write (*, 99998) 'exit d02pcf with ifail = ', ifailp, '  and z = ', zgot
+!            pause
+!            stop
+!         end if
+!99998    format(1x, a, i2, a, d12.5)
+!
+!         p(:, j + 1) = pgot
+!
+!         do i = 1, 2
+!            idx = idxp(i, :)
+!            ptmp(i, :) = dcmplx(p(idxre(i, :), j + 1), p(idxim(i, :), j + 1))
+!            dp2dz(idxp(i, :), j) = (cdabs(ptmp(i,:))**2 - cdabs(ptmp_old(i,:))**2)/dz
+!            mean2(i, j) = sum(dp2dz(idx, j))/ne
+!            ptmp_old(i, :) = ptmp(i, :)
+!         end do
+!      end do
+!      
+!      lhs = 4*f(1)**2 - 8*r(1)*f(5)*f(1)*dcos(th(1)-f(6)+f(2))
+!      rhs = -icu(1)*(0.5d0*(mean2(1,1)+mean2(1,nz-1)) + sum(mean2(1,2:(nz-2))))*dz
+!      
+!      c = lhs - rhs
+!
+!      !open (1, file='test.dat')
+!      !do j = 1, nz - 1
+!      !   write (1, '(2f17.8)') zax(j), mean2(2, j)
+!      !end do
+!      !close (1)
+!      !stop
+!
+!   end subroutine zs
 
 end module fun
