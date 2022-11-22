@@ -11,13 +11,6 @@ program sys15f
 
    call init()
 
-   do i = 1, ne
-      p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-      p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-      p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-      p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-   end do
-
    write (*, '(/)')
 
    start_time = dclock()
@@ -33,7 +26,24 @@ program sys15f
    write (*, '(/)')
    print *, 'Calcualting took:', hours, 'h :', minutes, 'm :', seconds, 's'
 
+   start_time = dclock()
+   write (*, '(/)')
+   print *, 'Writing...'
+   write (*, '(/)')
    call write_results()
+   stop_time = dclock()
+
+   calc_time = stop_time - start_time
+
+   hours = calc_time/3600
+   minutes = (calc_time - hours*3600)/60
+   seconds = calc_time - hours*3600 - minutes*60
+
+   print *, 'Writing took:', hours, 'h :', minutes, 'm :', seconds, 's'
+   write (*, '(/)')
+
+   pause   
+   stop
 
 !    do i = 2, nt
 !        do j = 1, 3
@@ -136,5 +146,4 @@ program sys15f
 !103 print *, 'error of file writing.'
 !    pause
 
-   stop
 end program

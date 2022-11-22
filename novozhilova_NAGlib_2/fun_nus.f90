@@ -6,7 +6,7 @@ module fun
    real(c_double) zex, dz, tend, dtr(2), q(3), icu(2), th(2), a(2), dcir(2), r(2), &
       f0(3), dt, pitch, f10, f20, f30, p10, p20, p30, ftol, ptol, hstart, zstart, xout, ng
    complex(c_double_complex) fp(2)
-   logical(c_bool) errass, wc
+   logical(c_bool) errass
 
    common xout, it
 
@@ -18,8 +18,7 @@ module fun
    complex(c_double_complex), allocatable, target :: mean(:)
    real(c_double), allocatable, target :: tax(:), zax(:), u(:), eta(:, :), etag(:, :), w(:, :), f(:, :), p(:, :), &
                                           phi(:, :), phios(:, :), wos(:, :), &
-                                          pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:), dp2dz(:, :), mean2(:, :), &
-                                          cl1(:), lhs1(:), rhs1(:), cl2(:), lhs2(:), rhs2(:)
+                            pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:), dp2dz(:, :), mean2(:, :), cl(:), lhs(:), rhs(:)
 
    complex(c_double_complex), parameter :: ic = (0.0d0, 1.0d0)
    real(c_double), parameter :: pi = 2.0d0*dacos(0.0d0)
@@ -85,11 +84,18 @@ contains
       ng = 2
 
       do i = 1, ne
-         p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
+         p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*pi))
+         p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*pi))
+         p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*pi))
+         p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*pi))
       end do
+
+      !do i = 1, ne
+      !   p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
+      !   p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
+      !   p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
+      !   p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
+      !end do
 
    end subroutine init
 
@@ -99,10 +105,9 @@ contains
 
       integer(c_int) err_alloc
 
-      allocate (f(6, nt), p(neqp, nz), u(nz), tax(nt), zax(nz), mean(nz), eta(2, nt), etag(2, nt), w(3, nt), &
+      allocate (f(6, nt), p(neqp, nz), u(nz), tax(nt), zax(nz), mean(nz), eta(2, nt), etag(2, nt), w(3, nt - 1), &
                 idxre(2, ne), idxim(2, ne), pgot(neqp), ppgot(neqp), pmax(neqp), thres(neqp), workp(lenwrk), work(lwork), &
-                iwork(liwork), wos(3, nt), phi(3, nt), phios(3, nt), dp2dz(2*ne, nz), idxp(2, ne), mean2(2, nz - 1), &
-                cl1(nt), lhs1(nt), rhs1(nt), cl2(nt), lhs2(nt), rhs2(nt), stat=err_alloc)
+        iwork(liwork), wos(3, nt - 1), phi(3, nt), phios(3, nt), dp2dz(2*ne, nz), idxp(2, ne), mean2(2, nz - 1), cl(nt), lhs(nt), rhs(nt), stat=err_alloc)
 
       if (err_alloc /= 0) then
          print *, "allocation error"
@@ -132,7 +137,7 @@ contains
       implicit none
 
       namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, &
-         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc
+         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol
 
       real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2
 
@@ -169,10 +174,9 @@ contains
       implicit none
 
       namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, &
-         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc
+         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol
 
       real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2
-      logical wc
 
       open (unit=1, file='input_fortran.in', status='old', err=101)
       !print *, 'OK1'
@@ -202,19 +206,12 @@ contains
 
       integer i, j
 
-      if (wc .eq. .true.) then        
-         w(:, 1) = 0
-         do i = 2, nt
-            do j = 1, 3
-               !w(j, i - 1) = dimag(log(f(2*j - 1, i)*cdexp(ic*f(2*j, i))/(f(2*j - 1, i - 1)*cdexp(ic*f(2*j, i - 1)))))/dt
-               w(j, i) = (f(2*j, i) - f(2*j, i - 1))/dt
-            end do
+      do i = 2, nt
+         do j = 1, 3
+            !w(j, i - 1) = dimag(log(f(2*j - 1, i)*cdexp(ic*f(2*j, i))/(f(2*j - 1, i - 1)*cdexp(ic*f(2*j, i - 1)))))/dt
+            w(j, i - 1) = (f(2*j, i) - f(2*j, i - 1))/dt
          end do
-         print *, 'Frequency calculated from phase. ( WC = ', wc, ')'
-      elseif (wc .eq. .false.) then         
-         call freq()
-         print *, 'Frequency calculated from RHS. ( WC = ', wc, ')'
-      end if
+      end do
 
       phi(:, 1) = 0; 
       do i = 2, nt
@@ -250,17 +247,11 @@ contains
 
       write (*, '(/)')
 
-      !pause
+      pause
 
-      open (3, file='cl1.dat')
+      open (3, file='cl.dat')
       do i = 1, nt
-         write (3, '(5e17.8)') tax(i), cl1(i), lhs1(i), rhs1(i), abs(cl1(i)/lhs1(i))
-      end do
-      close (3)
-
-      open (3, file='cl2.dat')
-      do i = 1, nt
-         write (3, '(5e17.8)') tax(i), cl2(i), lhs2(i), rhs2(i), abs(cl2(i)/lhs2(i))
+         write (3, '(4e17.8)') tax(i), cl(i), lhs(i), rhs(i)
       end do
       close (3)
 
@@ -314,7 +305,7 @@ contains
 
       call write_param()
 
-      return
+      stop
 
 101   print *, 'error of file open.'
       pause
@@ -326,6 +317,40 @@ contains
       pause
       stop
    end subroutine write_results
+
+   subroutine calcpex(fpex, pex, c, lhs, rhs)
+
+      implicit none
+
+      real(8), intent(inout) :: c, lhs, rhs
+
+      integer(c_int) i, idx(ne)
+      real(c_double) :: zwant, zgot, pex(neqp), fpex(6), p2ex_mean(2), p20_mean(2)
+      complex(8) ptmp(ne)
+
+      call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
+
+      fp(1) = fpex(1)*cdexp(ic*fpex(2))
+      fp(2) = fpex(3)*cdexp(ic*fpex(4))
+
+      call d02pcf(dpdz, zex, zgot, pex, ppgot, pmax, workp, ifailp)
+
+      do i = 1, 2
+         idx = idxp(i, :)
+
+         ptmp(:) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))
+         p20_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
+
+         ptmp(:) = dcmplx(pex(idxre(i, :)), pex(idxim(i, :)))
+         p2ex_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
+      end do
+
+      lhs = 4*fpex(1)**2 - 8*r(1)*fpex(5)*fpex(1)*dcos(th(1) - fpex(6) + fpex(2))
+      rhs = -icu(1)*(p2ex_mean(1) - p20_mean(1))
+
+      c = lhs - rhs
+
+   end subroutine calcpex
 
    subroutine ode4f()
       import
@@ -340,11 +365,11 @@ contains
       integer(c_int), parameter :: esc = 27
 
       integer(c_int), parameter :: neq = 6, neqmax = neq, nrw = 50 + 4*neqmax, ninf = 23, nwkjac = neqmax*(neqmax + 1), &
-                                   maxord = 5, ny2dim = maxord + 1, maxstp = 0, mxhnil = 5
+                                   maxord = 5, ny2dim = maxord + 1, maxstp = 150000, mxhnil = 5
       real(c_double), parameter :: h0 = 0.0d0, hmax = 10.0d0, hmin = 1.0d-10
       integer(c_int) itask, itol, itrace, inform(ninf)
       real(c_double) atolnag(neqmax), const(6), rtolnag(neqmax), rwork(nrw), wkjac(nwkjac), y(neqmax), ydot(neqmax), &
-         ysave(neqmax, ny2dim), tout, atol(neqmax), rtol(neqmax), tcrit, pex(neqp)
+         ysave(neqmax, ny2dim), tout, atol(neqmax), rtol(neqmax), tcrit
       logical(c_bool), parameter ::    petzld = .false.
 
       !solve eq. at t=0
@@ -409,12 +434,13 @@ contains
          stop
       end if
 
-      !call calcpex(y, pex, cl1(it), lhs1(it), rhs1(it), cl2(it), lhs2(it), rhs2(it))
-      !eta(:, nt) = eff(p(:, nz))
-      !etag(:, nt) = pitch**2/(pitch**2 + 1)*eta(:, nt)
-      !do j = 1, neqf
-      !   f(j, nt) = y(j)
-      !end do
+      !call dopri5(6, dfdt, t, y, tend, rtol, atol, itol, solout, iout, work, lwork, iwork, liwork, rpar, ipar, idid)
+
+      eta(:, nt) = eff(p(:, nz))
+      etag(:, nt) = pitch**2/(pitch**2 + 1)*eta(:, nt)
+      do j = 1, neqf
+         f(j, nt) = y(j)
+      end do
 
    end subroutine ode4f
 
@@ -456,7 +482,7 @@ contains
       do i = 1, 2
          ptmp = dcmplx(p(idxre(i, :)), p(idxim(i, :)))
 
-         s = ic*(fp(i)*u*dconjg(ptmp) - (dtr(i) + cdabs(ptmp)**2 - 1)*ptmp)
+         s = ic*(fp(i)*u*dconjg(ptmp) - (dtr(i) + cdabs(ptmp)**2 - 1)*ptmp/2.0d0)
 
          prhs(idxre(i, :)) = dreal(s)
          prhs(idxim(i, :)) = dimag(s)
@@ -732,13 +758,12 @@ contains
          imon = -2
       else
          !write (nout, 99999) xout, (r(i), i=1, n)
-         call calcpex(r, pex, cl1(it), lhs1(it), rhs1(it), cl2(it), lhs2(it), rhs2(it))
-         !call zs(r, pex, cl1(it), lhs1(it), rhs1(it), cl2(it), lhs2(it), rhs2(it))
+         call calcpex(r, pex, cl(it), lhs(it), rhs(it))
          eta(:, it) = eff(pex)
          etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
-         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f5.3,a,f5.3,a,\,a)') 't =', xout, &
+         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,\,a)') 't =', xout, &
             '  |f1| =', r(1), '  |f2| =', r(3), '  |f3| =', r(5), '  e1 =', eta(1, it), '  e2 =', eta(2, it), &
-            '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c1 =', dabs(cl1(it)/rhs1(it))*100, '%  c2 =', dabs(cl2(it)/rhs2(it)*100), '%', char(13)
+    '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c.l. =', cl(it), '  lhs =', lhs(it), '  rhs =', rhs(it), char(13)
          do j = 1, n
             f(j, it) = r(j)
          end do
@@ -766,214 +791,61 @@ contains
 99999 format(1x, f8.3, 6(f13.5, 2x))
    end subroutine monitr
 
-   subroutine calcpex(fpex, pex, c1, lhs1, rhs1, c2, lhs2, rhs2)
-
-      implicit none
-
-      real(8), intent(out) :: c1, lhs1, rhs1, c2, lhs2, rhs2
-
-      integer(c_int) i, idx(ne)
-      real(c_double) :: zwant, zgot, pex(neqp), fpex(6), p2ex_mean(2), p20_mean(2)
-      complex(8) ptmp(ne)
-
-      call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
-
-      fp(1) = fpex(1)*cdexp(ic*fpex(2))
-      fp(2) = fpex(3)*cdexp(ic*fpex(4))
-
-      call d02pcf(dpdz, zex, zgot, pex, ppgot, pmax, workp, ifailp)
-
-      do i = 1, 2
-         idx = idxp(i, :)
-
-         ptmp(:) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))
-         p20_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
-
-         ptmp(:) = dcmplx(pex(idxre(i, :)), pex(idxim(i, :)))
-         p2ex_mean(i) = sum(cdabs(ptmp(:)*cdabs(ptmp(:))))/ne
-      end do
-
-      lhs1 = 4*fpex(1)**2 - 8*r(1)*fpex(5)*fpex(1)*dcos(th(1) - fpex(6) + fpex(2))
-      rhs1 = -icu(1)*(p2ex_mean(1) - p20_mean(1))
-      c1 = lhs1 - rhs1
-
-      lhs2 = 4*fpex(3)**2 - 8*r(2)*fpex(5)*fpex(3)*dcos(th(2) - fpex(6) + fpex(4))
-      rhs2 = -icu(2)*(p2ex_mean(2) - p20_mean(2))
-      c2 = lhs2 - rhs2
-
-   end subroutine calcpex
-
-   subroutine zs(f, pex, c1, lhs1, rhs1, c2, lhs2, rhs2)
-
-      implicit none
-
-      real(8), intent(in) :: f(neqf)
-      real(8), intent(inout) :: c1, lhs1, rhs1, c2, lhs2, rhs2, pex(neqp)
-
-      integer(4) j, i, idx(ne)
-      real(c_double) :: zwant, zgot
-      complex(c_double_complex) ptmp(2, ne), ptmp_old(2, ne)
-
-      fp(1) = f(1)*cdexp(ic*f(2))
-      fp(2) = f(3)*cdexp(ic*f(4))
-
-      call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
-
-      do i = 1, 2
-         ptmp_old(i, :) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))
-      end do
-
-      do j = 1, nz - 1
-         zwant = zax(j + 1)
-         call d02pcf(dpdz, zwant, zgot, pgot, ppgot, pmax, workp, ifailp)
-
-         if (ifailp .ne. 0) then
-            write (*, *)
-            write (*, 99998) 'exit d02pcf with ifail = ', ifailp, '  and z = ', zgot
-            pause
-            stop
-         end if
-99998    format(1x, a, i2, a, d12.5)
-
-         p(:, j + 1) = pgot
-
-         do i = 1, 2
-            idx = idxp(i, :)
-            ptmp(i, :) = dcmplx(p(idxre(i, :), j + 1), p(idxim(i, :), j + 1))
-            dp2dz(idxp(i, :), j) = (cdabs(ptmp(i, :))**2 - cdabs(ptmp_old(i, :))**2)/dz
-            mean2(i, j) = sum(dp2dz(idx, j))/ne
-            ptmp_old(i, :) = ptmp(i, :)
-         end do
-      end do
-
-      pex(:) = pgot
-
-      lhs1 = 4*f(1)**2 - 8*r(1)*f(5)*f(1)*dcos(th(1) - f(6) + f(2))
-      rhs1 = -icu(1)*(0.5d0*(mean2(1, 1) + mean2(1, nz - 1)) + sum(mean2(1, 2:(nz - 2))))*dz
-      c1 = lhs1 - rhs1
-
-      lhs2 = 4*f(3)**2 - 8*r(2)*f(5)*f(3)*dcos(th(2) - f(6) + f(4))
-      rhs2 = -icu(2)*(0.5d0*(mean2(2, 1) + mean2(2, nz - 1)) + sum(mean2(2, 2:(nz - 2))))*dz
-      c2 = lhs2 - rhs2
-
-      !open (1, file='test.dat')
-      !do j = 1, nz - 1
-      !   write (1, '(2f17.8)') zax(j), mean2(2, j)
-      !end do
-      !close (1)
-      !stop
-
-   end subroutine zs
-
-   subroutine freq()
-
-      implicit none
-
-      integer(c_int) :: ii, iparf, aiparp(1), itp, j
-      real(c_double) t, z, zwant, zgot, &
-         x1r, x1i, q31, i1, r1, th1, dcir1, cos1, sin1, &
-         x2r, x2i, q32, i2, r2, th2, dcir2, cos2, sin2, q3, &
-         f1, f2, f3, phi1, phi2, phi3, a1, a2
-      complex(c_double_complex) x1, x2
-
-      do ii = 2, nt
-
-         fp(1) = f(1, ii)*exp(ic*f(2, ii))
-         fp(2) = f(3, ii)*exp(ic*f(4, ii))
-
-         call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
-
-         do j = 1, nz - 1
-            zwant = zax(j + 1)
-            call d02pcf(dpdz, zwant, zgot, pgot, ppgot, pmax, workp, ifailp)
-
-            if (ifailp .ne. 0) then
-               write (*, *)
-               write (*, 99998) 'exit d02pcf with ifail = ', ifailp, '  and z = ', zgot
-               pause
-               stop
-            end if
-99998       format(1x, a, i2, a, d12.5)
-
-            p(:, j + 1) = pgot
-         end do
-
-         !rparp = 0.0
-         !iparp = 0
-         !itolp = 0
-         !!rtolp = 1.0d-7
-         !rtolp = ptol
-         !atolp = rtolp
-         !ioutp = neqp
-         !z = zax(1)
-         !xoutp = z
-         !itp = 0
-         !yp = p(:, 1)
-         !iworkp(:) = 0
-         !workp(:) = 0.0d0
-         !iworkp(5) = neqp
-         !
-         !artolp(1) = rtolp
-         !aatolp(1) = atolp
-         !arparp(1) = rparp
-         !aiparp(1) = iparp
-         !
-         !call dopri5_p(neqp, dpdz, z, yp, zex, artolp, aatolp, itolp, soloutp, ioutp, &
-         !              workp, lworkp, iworkp, liworkp, arparp, aiparp, ididp)
-         !
-         !p(:, nz) = yp(:)
-
-         !open (1, file='test.dat')
-         !do ii = 1, nz
-         !    write (1,'(5f17.8)') zax(ii), p(1,ii), p(ne+1,ii), p(10,ii), p(ne+10,ii)
-         !end do
-         !close (1)
-         !stop
-
-         x1 = xi(p(1:2*ne, :), 1)
-         x2 = xi(p(2*ne + 1:4*ne, :), 1)
-
-         x1r = dreal(x1)
-         x1i = dimag(x1)
-         x2r = dreal(x2)
-         x2i = dimag(x2)
-
-         f1 = f(1, ii)
-         phi1 = f(2, ii)
-         f2 = f(3, ii)
-         phi2 = f(4, ii)
-         f3 = f(5, ii)
-         phi3 = f(6, ii)
-
-         q31 = q(3)/q(1)
-         i1 = icu(1)
-         r1 = r(1)
-         th1 = th(1)
-         dcir1 = dcir(1)
-         cos1 = dcos(phi1)
-         sin1 = dsin(phi1)
-
-         q32 = q(3)/q(2)
-         i2 = icu(2)
-         r2 = r(2)
-         th2 = th(2)
-         dcir2 = dcir(2)
-         cos2 = dcos(phi2)
-         sin2 = dsin(phi2)
-
-         q3 = q(3)
-         a1 = a(1)
-         a2 = a(2)
-
-         !s(1) = (-ng*f1 + i1*(-x1i*cos1 + x1r*sin1) + 2*r1*ng*f3*dcos(phi3 - phi1 - th1))*q31
-         w(1, ii) = -2*dcir1*q3 + (i1/f1*(x1r*cos1 + x1i*sin1) + 2*r1*ng*(f3/f1)*dsin(phi3 - phi1 - th1))*q31
-
-         !s(3) = (-ng*f2 + i2*(-x2i*cos2 + x2r*sin2) + 2*r2*ng*f3*dcos(phi3 - phi2 - th2))*q32
-         w(2, ii) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*ng*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
-
-         !s(5) = -f3 + a1*f1*dcos(phi1 - phi3) + a2*f2*dcos(phi2 - phi3)
-         w(3, ii) = a1*f1/f3*dsin(phi1 - phi3) + a2*f2/f3*dsin(phi2 - phi3)
-      end do
-   end subroutine freq
+!   subroutine zs(f, c, lhs, rhs)
+!
+!      implicit none
+!
+!      real(8), intent(in) :: f(neqf)
+!      real(8), intent(inout) :: c, lhs, rhs
+!
+!      integer(4) j, i, idx(ne)
+!      real(c_double) :: zwant, zgot
+!      complex(c_double_complex) ptmp(2, ne), ptmp_old(2, ne)
+!
+!      fp(1) = f(1)*cdexp(ic*f(2))
+!      fp(2) = f(3)*cdexp(ic*f(4))
+!
+!      call d02pvf(neqp, zstart, p(:, 1), zex, ptol, thres, method, 'usual task', errass, hstart, workp, lenwrk, ifailp)
+!
+!      do i = 1, 2
+!         ptmp_old(i, :) = dcmplx(p(idxre(i, :), 1), p(idxim(i, :), 1))
+!      end do
+!
+!      do j = 1, nz - 1
+!         zwant = zax(j + 1)
+!         call d02pcf(dpdz, zwant, zgot, pgot, ppgot, pmax, workp, ifailp)
+!
+!         if (ifailp .ne. 0) then
+!            write (*, *)
+!            write (*, 99998) 'exit d02pcf with ifail = ', ifailp, '  and z = ', zgot
+!            pause
+!            stop
+!         end if
+!99998    format(1x, a, i2, a, d12.5)
+!
+!         p(:, j + 1) = pgot
+!
+!         do i = 1, 2
+!            idx = idxp(i, :)
+!            ptmp(i, :) = dcmplx(p(idxre(i, :), j + 1), p(idxim(i, :), j + 1))
+!            dp2dz(idxp(i, :), j) = (cdabs(ptmp(i,:))**2 - cdabs(ptmp_old(i,:))**2)/dz
+!            mean2(i, j) = sum(dp2dz(idx, j))/ne
+!            ptmp_old(i, :) = ptmp(i, :)
+!         end do
+!      end do
+!
+!      lhs = 4*f(1)**2 - 8*r(1)*f(5)*f(1)*dcos(th(1)-f(6)+f(2))
+!      rhs = -icu(1)*(0.5d0*(mean2(1,1)+mean2(1,nz-1)) + sum(mean2(1,2:(nz-2))))*dz
+!
+!      c = lhs - rhs
+!
+!      !open (1, file='test.dat')
+!      !do j = 1, nz - 1
+!      !   write (1, '(2f17.8)') zax(j), mean2(2, j)
+!      !end do
+!      !close (1)
+!      !stop
+!
+!   end subroutine zs
 
 end module fun
