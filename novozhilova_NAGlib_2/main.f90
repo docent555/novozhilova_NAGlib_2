@@ -42,7 +42,7 @@ program sys15f
    print *, 'Writing took:', hours, 'h :', minutes, 'm :', seconds, 's'
    write (*, '(/)')
 
-   pause   
+   pause
    stop
 
 !    do i = 2, nt
