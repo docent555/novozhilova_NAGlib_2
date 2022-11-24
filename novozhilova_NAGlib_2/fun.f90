@@ -692,47 +692,47 @@ contains
       !pp(6, 5) = hxd/(f3**2)*(a1*f1*sin13 + a2*f2*sin23)
       !pp(6, 6) = 1.0d0 + hxd/f3*(a1*f1*cos13 + a2*f2*cos23)
 
-      p(1, 1) = hxd*ng*q31 + 1.0D0
-      p(1, 2) = -hxd*q31*(i1*(x1r*cos(phi1) + x1i*sin(phi1)) - f3*ng*r1*sin(phi1 - phi3 + th1)*2.0D0)
-      !p(1, 3) = 0.0D0
-      !p(1, 4) = 0.0D0
-      p(1, 5) = hxd*ng*q31*r1*cos(phi1 - phi3 + th1)*(-2.0D0)
-      p(1, 6) = f3*hxd*ng*q31*r1*sin(phi1 - phi3 + th1)*(-2.0D0)
+      pp(1, 1) = hxd*ng*q31 + 1.0D0
+      pp(1, 2) = -hxd*q31*(i1*(x1r*cos(phi1) + x1i*sin(phi1)) - f3*ng*r1*sin(phi1 - phi3 + th1)*2.0D0)
+      !pp(1, 3) = 0.0D0
+      !pp(1, 4) = 0.0D0
+      pp(1, 5) = hxd*ng*q31*r1*cos(phi1 - phi3 + th1)*(-2.0D0)
+      pp(1, 6) = f3*hxd*ng*q31*r1*sin(phi1 - phi3 + th1)*(-2.0D0)
 
-      p(2, 1) = hxd*q31*(1.0D0/f1**2*i1*(x1r*cos(phi1) + x1i*sin(phi1)) - 1.0D0/f1**2*f3*ng*r1*sin(phi1 - phi3 + th1)*2.0D0)
-      p(2, 2) = -hxd*q31*((i1*(x1i*cos(phi1) - x1r*sin(phi1)))/f1 - (f3*ng*r1*cos(phi1 - phi3 + th1)*2.0D0)/f1) + 1.0D0
-      !p(2, 3) = 0.0D0
-      !p(2, 4) = 0.0D0
-      p(2, 5) = (hxd*ng*q31*r1*sin(phi1 - phi3 + th1)*2.0D0)/f1
-      p(2, 6) = (f3*hxd*ng*q31*r1*cos(phi1 - phi3 + th1)*(-2.0D0))/f1
+      pp(2, 1) = hxd*q31*(1.0D0/f1**2*i1*(x1r*cos(phi1) + x1i*sin(phi1)) - 1.0D0/f1**2*f3*ng*r1*sin(phi1 - phi3 + th1)*2.0D0)
+      pp(2, 2) = -hxd*q31*((i1*(x1i*cos(phi1) - x1r*sin(phi1)))/f1 - (f3*ng*r1*cos(phi1 - phi3 + th1)*2.0D0)/f1) + 1.0D0
+      !pp(2, 3) = 0.0D0
+      !pp(2, 4) = 0.0D0
+      pp(2, 5) = (hxd*ng*q31*r1*sin(phi1 - phi3 + th1)*2.0D0)/f1
+      pp(2, 6) = (f3*hxd*ng*q31*r1*cos(phi1 - phi3 + th1)*(-2.0D0))/f1
 
-      !p(3, 1) = 0.0D0
-      !p(3, 2) = 0.0D0
-      p(3, 3) = hxd*ng*q32 + 1.0D0
-      p(3, 4) = -hxd*q32*(i2*(x2r*cos(phi2) + x2i*sin(phi2)) - f3*ng*r2*sin(phi2 - phi3 + th2)*2.0D0)
-      p(3, 5) = hxd*ng*q32*r2*cos(phi2 - phi3 + th2)*(-2.0D0)
-      p(3, 6) = f3*hxd*ng*q32*r2*sin(phi2 - phi3 + th2)*(-2.0D0)
+      !pp(3, 1) = 0.0D0
+      !pp(3, 2) = 0.0D0
+      pp(3, 3) = hxd*ng*q32 + 1.0D0
+      pp(3, 4) = -hxd*q32*(i2*(x2r*cos(phi2) + x2i*sin(phi2)) - f3*ng*r2*sin(phi2 - phi3 + th2)*2.0D0)
+      pp(3, 5) = hxd*ng*q32*r2*cos(phi2 - phi3 + th2)*(-2.0D0)
+      pp(3, 6) = f3*hxd*ng*q32*r2*sin(phi2 - phi3 + th2)*(-2.0D0)
 
-      !p(4, 1) = 0.0D0
-      !p(4, 2) = 0.0D0
-      p(4, 3) = hxd*q32*(1.0D0/f2**2*i2*(x2r*cos(phi2) + x2i*sin(phi2)) - 1.0D0/f2**2*f3*ng*r2*sin(phi2 - phi3 + th2)*2.0D0)
-      p(4, 4) = -hxd*q32*((i2*(x2i*cos(phi2) - x2r*sin(phi2)))/f2 - (f3*ng*r2*cos(phi2 - phi3 + th2)*2.0D0)/f2) + 1.0D0
-      p(4, 5) = (hxd*ng*q32*r2*sin(phi2 - phi3 + th2)*2.0D0)/f2
-      p(4, 6) = (f3*hxd*ng*q32*r2*cos(phi2 - phi3 + th2)*(-2.0D0))/f2
+      !pp(4, 1) = 0.0D0
+      !pp(4, 2) = 0.0D0
+      pp(4, 3) = hxd*q32*(1.0D0/f2**2*i2*(x2r*cos(phi2) + x2i*sin(phi2)) - 1.0D0/f2**2*f3*ng*r2*sin(phi2 - phi3 + th2)*2.0D0)
+      pp(4, 4) = -hxd*q32*((i2*(x2i*cos(phi2) - x2r*sin(phi2)))/f2 - (f3*ng*r2*cos(phi2 - phi3 + th2)*2.0D0)/f2) + 1.0D0
+      pp(4, 5) = (hxd*ng*q32*r2*sin(phi2 - phi3 + th2)*2.0D0)/f2
+      pp(4, 6) = (f3*hxd*ng*q32*r2*cos(phi2 - phi3 + th2)*(-2.0D0))/f2
 
-      p(5, 1) = -a1*hxd*cos(phi1 - phi3)
-      p(5, 2) = a1*f1*hxd*sin(phi1 - phi3)
-      p(5, 3) = -a2*hxd*cos(phi2 - phi3)
-      p(5, 4) = a2*f2*hxd*sin(phi2 - phi3)
-      p(5, 5) = hxd + 1.0D0
-      p(5, 6) = -hxd*(a1*f1*sin(phi1 - phi3) + a2*f2*sin(phi2 - phi3))
+      pp(5, 1) = -a1*hxd*cos(phi1 - phi3)
+      pp(5, 2) = a1*f1*hxd*sin(phi1 - phi3)
+      pp(5, 3) = -a2*hxd*cos(phi2 - phi3)
+      pp(5, 4) = a2*f2*hxd*sin(phi2 - phi3)
+      pp(5, 5) = hxd + 1.0D0
+      pp(5, 6) = -hxd*(a1*f1*sin(phi1 - phi3) + a2*f2*sin(phi2 - phi3))
 
-      p(6, 1) = -(a1*hxd*sin(phi1 - phi3))/f3
-      p(6, 2) = -(a1*f1*hxd*cos(phi1 - phi3))/f3
-      p(6, 3) = -(a2*hxd*sin(phi2 - phi3))/f3
-      p(6, 4) = -(a2*f2*hxd*cos(phi2 - phi3))/f3
-      p(6, 5) = hxd*(a1*f1*1.0D0/f3**2*sin(phi1 - phi3) + a2*f2*1.0D0/f3**2*sin(phi2 - phi3))
-      p(6, 6) = hxd*((a1*f1*cos(phi1 - phi3))/f3 + (a2*f2*cos(phi2 - phi3))/f3) + 1.0D0
+      pp(6, 1) = -(a1*hxd*sin(phi1 - phi3))/f3
+      pp(6, 2) = -(a1*f1*hxd*cos(phi1 - phi3))/f3
+      pp(6, 3) = -(a2*hxd*sin(phi2 - phi3))/f3
+      pp(6, 4) = -(a2*f2*hxd*cos(phi2 - phi3))/f3
+      pp(6, 5) = hxd*(a1*f1*1.0D0/f3**2*sin(phi1 - phi3) + a2*f2*1.0D0/f3**2*sin(phi2 - phi3))
+      pp(6, 6) = hxd*((a1*f1*cos(phi1 - phi3))/f3 + (a2*f2*cos(phi2 - phi3))/f3) + 1.0D0
 
       return
    end
