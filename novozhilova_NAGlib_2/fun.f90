@@ -2,11 +2,12 @@ module fun
    use, intrinsic :: iso_c_binding
    use ifcore
 
-   integer(c_int) ne, nt, nz, freq_out, neqp, lenwrk, l, method, neqf, lwork, liwork, nrd, it, ifailp
+   integer(c_int) ne, nt, nz, freq_out, neqp, lenwrk, l, method, neqf, lwork, liwork, nrd, it, ifailp, inharm
    real(c_double) zex, dz, tend, dtr(2), q(3), icu(2), th(2), a(2), dcir(2), r(2), &
-      f0(3), dt, pitch, f10, f20, f30, p10, p20, p30, ftol, ptol, hstart, zstart, xout, ng
+      f0(3), dt, pitch, f10, f20, f30, p10, p20, p30, ftol, ptol, hstart, zstart, xout, nharm, &
+      gamma, ukv, betta, betta2, betta_z, betta_z2, betta_perp, betta_perp2, gmp, w_op, c, e, m
    complex(c_double_complex) fp(2)
-   logical(c_bool) errass, wc
+   logical(c_bool) errass, wc, fok, lensm
 
    common xout, it
 
@@ -15,11 +16,15 @@ module fun
    complex(c_double_complex) fc, fcomp(3)
 
    integer(c_int), allocatable, target :: idxre(:, :), idxim(:, :), iwork(:), idxp(:, :)
-   complex(c_double_complex), allocatable, target :: mean(:)
-   real(c_double), allocatable, target :: tax(:), zax(:), u(:), eta(:, :), etag(:, :), w(:, :), f(:, :), p(:, :), &
+   complex(c_double_complex), allocatable, target :: u(:), mean(:)
+   real(c_double), allocatable, target :: tax(:), zax(:), eta(:, :), etag(:, :), w(:, :), f(:, :), p(:, :), &
                                           phi(:, :), phios(:, :), wos(:, :), &
                                           pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:), dp2dz(:, :), mean2(:, :), &
                                           cl1(:), lhs1(:), rhs1(:), cl2(:), lhs2(:), rhs2(:)
+
+   include 'z.inc'
+   include 're.inc'
+   include 'im.inc'
 
    complex(c_double_complex), parameter :: ic = (0.0d0, 1.0d0)
    real(c_double), parameter :: pi = 2.0d0*dacos(0.0d0)
@@ -34,6 +39,22 @@ contains
       integer(c_int) ii
 
       call read_param()
+      
+      nharm = dble(inharm)
+      gamma = 1.0 + ukv/511.0
+      betta = dsqrt(1.0d0 - 1.0d0/(gamma*gamma))
+      betta2 = 1.0d0 - 1.0d0/(gamma*gamma)
+      betta_z = betta/dsqrt(pitch*pitch + 1.0d0)
+      betta_z2 = betta2/(pitch*pitch + 1.0d0)
+      betta_perp2 = betta2 - betta_z2
+      gmp = 0.048715056967419
+      w_op = 2*pi*w_op*1e9
+      c = 29979245800.0d0
+      e = 4.803e-10
+      m = 9.1093837015e-28
+
+      if (lensm .eq. .true.) zex = betta_perp2/2.0d0/betta_z*w_op*zex/nharm/c
+      print *, 'Zex = ', zex
 
       nt = tend/dt + 1
       nz = zex/dz + 1
@@ -82,16 +103,92 @@ contains
       idxp(1, :) = (/1:ne/)
       idxp(2, :) = (/ne + 1:2*ne/)
 
-      ng = 2
+      nharm = 2
 
       do i = 1, ne
-         p(i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(2*ne + i, 1) = real(exp(ic*(i - 1)/dble(ne)*2*pi))
-         p(3*ne + i, 1) = imag(exp(ic*(i - 1)/dble(ne)*2*pi))
-      end do
+         p(i, 1) = dreal(cdexp(ic*(i - 1)/dble(ne)*2*pi))
+         p(ne + i, 1) = dimag(cdexp(ic*(i - 1)/dble(ne)*2*pi))
+         p(2*ne + i, 1) = dreal(cdexp(ic*(i - 1)/dble(ne)*2*pi))
+         p(3*ne + i, 1) = dimag(cdexp(ic*(i - 1)/dble(ne)*2*pi))
+      end do            
 
    end subroutine init
+   
+   function squval(zz)
+
+      implicit none
+
+      real(c_double), intent(in) :: zz
+
+      complex(c_double_complex) squval
+      real(c_double) z, re, im, dz, z1
+      integer(c_int) l
+
+      dz = 0.280211
+      z = zz/zex*185.5d0
+      l = z/dz
+
+      if (l .eq. 0) then
+         l = 2
+      elseif (l .ge. 662) then
+         l = 662
+      else
+         if ((z - za(l)) .gt. 0.5*dz) l = l + 1
+      end if
+
+      z1 = za(l)
+      z = z - 8.5d0
+
+      re = rea(l - 1) + ((-rea(l - 1) + rea(l))*(dz + z - z1))/dz + ((rea(l - 1)/2.0d0 - rea(l) + &
+                                                                      rea(l + 1)/2.0d0)*(z - z1)*(dz + z - z1))/dz/dz
+      im = ima(l - 1) + ((-ima(l - 1) + ima(l))*(dz + z - z1))/dz + ((ima(l - 1)/2.0d0 - ima(l) + &
+                                                                      ima(l + 1)/2.0d0)*(z - z1)*(dz + z - z1))/dz/dz
+      !!!NE RABOTAET
+      !re = ((rea(l - 1) - 2*rea(l) + rea(l + 1))*z**2)/(2.*dz**2) &
+      !     + (z*(dz*(-rea(l - 1) + rea(l + 1)) - 2*(rea(l - 1) - 2*rea(l) + rea(l + 1))*z1))/(2.*dz**2) + &
+      !     -(2*dz**2*rea(l) + dz*(rea(l - 1) - rea(l + 1))*z1 + (rea(l - 1) - 2*rea(l) + rea(l + 1))*z1**2)/(2.*dz**2)
+      !im = ((ima(l - 1) - 2*ima(l) + ima(l + 1))*z**2)/(2.*dz**2) + &
+      !     (z*(dz*(-ima(l - 1) + ima(l + 1)) - 2*(ima(l - 1) - 2*ima(l) + ima(l + 1))*z1))/(2.*dz**2) + &
+      !     -(2*dz**2*ima(l) + dz*(ima(l - 1) - ima(l + 1))*z1 + (ima(l - 1) - 2*ima(l) + ima(l + 1))*z1**2)/(2.*dz**2)
+
+      squval = dcmplx(re, im)
+
+   end function squval
+
+   function uval(zz)
+
+      implicit none
+
+      real(c_double), intent(in) :: zz
+      
+      complex(c_double_complex) uval
+      real(c_double) z, re, im, d
+      integer(c_int) l
+      
+      z = zz/zex*185.5 - 8.5
+      l = (z + 8.5)/0.28021 + 1      
+      d = z - za(l)                        
+
+      !print *, z, l, d
+
+      if (d .gt. 0.0 .and. l /= 663) then
+         re = (rea(l)*za(l + 1) - rea(l + 1)*za(l))/(za(l + 1) - za(l)) + &
+              (rea(l + 1) - rea(l))/(za(l + 1) - za(l))*z
+         im = (ima(l)*za(l + 1) - ima(l + 1)*za(l))/(za(l + 1) - za(l)) + &
+              (ima(l + 1) - ima(l))/(za(l + 1) - za(l))*z
+      else if (d .lt. 0.0 .and. l /= 1) then
+         re = (rea(l - 1)*za(l) - rea(l)*za(l - 1))/(za(l) - za(l - 1)) + &
+              (rea(l) - rea(l - 1))/(za(l) - za(l - 1))*z
+         im = (ima(l - 1)*za(l) - ima(l)*za(l - 1))/(za(l) - za(l - 1)) + &
+              (ima(l) - ima(l - 1))/(za(l) - za(l - 1))*z
+      else
+         re = rea(l)
+         im = ima(l)
+      end if
+
+      uval = dcmplx(re, im)
+
+   end function uval
 
    subroutine allocate_arrays()
       use, intrinsic :: iso_c_binding
@@ -132,7 +229,8 @@ contains
       implicit none
 
       namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, &
-         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc
+         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc, fok, inharm, ukv, &
+         w_op, lensm
 
       real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2
 
@@ -169,7 +267,8 @@ contains
       implicit none
 
       namelist /param/ ne, tend, zex, q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, &
-         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc
+         dcir1, dcir2, r1, r2, f10, f20, f30, p10, p20, p30, dt, dz, pitch, ftol, ptol, wc, fok, inharm, ukv, &
+         w_op, lensm
 
       real(c_double) q1, q2, q3, i1, i2, th1, th2, a1, a2, dtr1, dtr2, dcir1, dcir2, r1, r2
       logical wc
@@ -288,8 +387,8 @@ contains
       close (2)
 
       open (3, file='W.dat')
-      do i = 1, nt - 1
-         write (3, '(4e17.8)') tax(i + 1), w(1, i), w(2, i), w(3, i)
+      do i = 1, nt
+         write (3, '(4e17.8)') tax(i), w(1, i), w(2, i), w(3, i)
       end do
       close (3)
 
@@ -448,15 +547,20 @@ contains
       real(c_double) z, p(*), prhs(*)
 
       integer(c_int) i, reidx(ne), imidx(ne)
-      real(c_double) u
+      complex(c_double_complex) :: u
       complex(c_double_complex) s(ne), ptmp(ne)
 
-      u = dexp(-3*((z - zex/2)/(zex/2))**2)
+      if (fok .eq. .false.) then
+         u = dexp(-3*((z - zex/2)/(zex/2))**2)
+      else
+         u = squval(z)
+      end if
 
       do i = 1, 2
          ptmp = dcmplx(p(idxre(i, :)), p(idxim(i, :)))
 
-         s = ic*(fp(i)*u*dconjg(ptmp) - (dtr(i) + cdabs(ptmp)**2 - 1)*ptmp)
+         !s = ic*(fp(i)*u*dconjg(ptmp) - (dtr(i) + cdabs(ptmp)**2 - 1)*ptmp)
+         s = ic*(fp(i)*u*dconjg(ptmp)**(inharm - 1) - (dtr(i) + cdabs(ptmp)**2 - 1)*ptmp)
 
          prhs(idxre(i, :)) = dreal(s)
          prhs(idxim(i, :)) = dimag(s)
@@ -465,19 +569,18 @@ contains
 
    complex(c_double_complex) function xi(p, num)
       use, intrinsic :: iso_c_binding, only: c_int, c_double, c_double_complex
-      import, only:ne, nz, mean, u, dz, idxre, idxim
+      import, only:ne, nz, mean, u, dz, idxre, idxim, inharm
 
       implicit none
 
       integer(c_int) i, num
       real(c_double) p(:, :)
 
-      do i = 1, nz
-         mean(i) = sum(dcmplx(p(idxre(num, :), i), p(idxim(num, :), i))**2, 1)/ne
+      do i = 1, nz         
+         mean(i) = sum(dcmplx(p(idxre(num, :), i), p(idxim(num, :), i))**inharm, 1)/ne
       end do
-
-      mean = u*mean
-      !mean = dconjg(u)*mean
+      
+      mean = dconjg(u)*mean
 
       !xi1 = (0.5d0*(mean(1) + mean(2)) + sum(mean(2:nz - 1)))*dz
       xi = (0.5d0*(mean(1) + mean(nz)) + sum(mean(2:(nz - 1))))*dz
@@ -524,8 +627,10 @@ contains
       !stop
       !endif
 
-      x1 = xi(p(1:2*ne, :), 1)
-      x2 = xi(p(2*ne + 1:4*ne, :), 1)
+      !x1 = xi(p(1:2*ne, :), 1)
+      !x2 = xi(p(2*ne + 1:4*ne, :), 1)
+      x1 = xi(p, 1)
+      x2 = xi(p, 2)
 
       x1r = dreal(x1)
       x1i = dimag(x1)
@@ -559,11 +664,11 @@ contains
       a1 = a(1)
       a2 = a(2)
 
-      s(1) = (-ng*f1 + i1*(-x1i*cos1 + x1r*sin1) + 2*r1*ng*f3*dcos(phi3 - phi1 - th1))*q31
-      s(2) = -2*dcir1*q3 + (i1/f1*(x1r*cos1 + x1i*sin1) + 2*r1*ng*(f3/f1)*dsin(phi3 - phi1 - th1))*q31
+      s(1) = (-nharm*f1 + i1*(-x1i*cos1 + x1r*sin1) + 2*r1*nharm*f3*dcos(phi3 - phi1 - th1))*q31
+      s(2) = -2*dcir1*q3 + (i1/f1*(x1r*cos1 + x1i*sin1) + 2*r1*nharm*(f3/f1)*dsin(phi3 - phi1 - th1))*q31
 
-      s(3) = (-ng*f2 + i2*(-x2i*cos2 + x2r*sin2) + 2*r2*ng*f3*dcos(phi3 - phi2 - th2))*q32
-      s(4) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*ng*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
+      s(3) = (-nharm*f2 + i2*(-x2i*cos2 + x2r*sin2) + 2*r2*nharm*f3*dcos(phi3 - phi2 - th2))*q32
+      s(4) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*nharm*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
 
       s(5) = -f3 + a1*f1*dcos(phi1 - phi3) + a2*f2*dcos(phi2 - phi3)
       s(6) = a1*f1/f3*dsin(phi1 - phi3) + a2*f2/f3*dsin(phi2 - phi3)
@@ -576,13 +681,26 @@ contains
 
       integer(c_int), intent(in) :: nz
       real(c_double), intent(in) :: zex, zax(nz)
-      real(c_double), intent(out) :: u(:)
+      complex(c_double_complex), intent(out) :: u(:)
 
       integer(c_int) i
 
-      do i = 1, nz
-         u(i) = dexp(-3*((zax(i) - zex/2)/(zex/2))**2)
-      end do
+      if (fok .eq. .false.) then
+         do i = 1, nz
+            u(i) = dexp(-3*((zax(i) - zex/2)/(zex/2))**2)
+         end do
+      else
+         do i = 1, nz
+            u(i) = squval(zax(i))
+         end do
+      end if
+
+      !open(1, file = 'test.dat') 
+      !do i = 1,nz
+      !   write(1, '(i,2f12.6)') i, dreal(u(i)), dimag(u(i))
+      !end do		
+      !close(1)      			
+      !stop
 
    end subroutine
 
@@ -650,36 +768,35 @@ contains
       cos13 = dcos(phi13)
       sin13 = dsin(phi13)
       cos23 = dcos(phi23)
-      sin23 = dsin(phi23)            
-      
+      sin23 = dsin(phi23)
 
-      !pp(1, 1) = 1.0d0 + hxd*q31*ng
-      !pp(1, 2) = -hxd*q31*(i1*(x1i*sin1 + x1r*cos1) + 2.0d0*ng*r1*f3*sin311)
+      !pp(1, 1) = 1.0d0 + hxd*q31*nharm
+      !pp(1, 2) = -hxd*q31*(i1*(x1i*sin1 + x1r*cos1) + 2.0d0*nharm*r1*f3*sin311)
       !!pp(1,3) = 0
       !!pp(1,4) = 0
-      !pp(1, 5) = -hxd*2.0d0*ng*r1*q31*cos311
-      !pp(1, 6) = hxd*2.0d0*ng*r1*q31*f3*sin311
+      !pp(1, 5) = -hxd*2.0d0*nharm*r1*q31*cos311
+      !pp(1, 6) = hxd*2.0d0*nharm*r1*q31*f3*sin311
       !
-      !pp(2, 1) = hxd*q31/(f1**2)*(i1*(x1r*cos1 + x1i*sin1) + 2.0d0*ng*r1*f3*sin311)
-      !pp(2, 2) = 1.0d0 - hxd*q31/f1*(i1*(-x1r*sin1 + x1i*cos1) - 2.0d0*ng*r1*f3*cos311)
+      !pp(2, 1) = hxd*q31/(f1**2)*(i1*(x1r*cos1 + x1i*sin1) + 2.0d0*nharm*r1*f3*sin311)
+      !pp(2, 2) = 1.0d0 - hxd*q31/f1*(i1*(-x1r*sin1 + x1i*cos1) - 2.0d0*nharm*r1*f3*cos311)
       !!pp(2,3) = 0
       !!pp(2,4) = 0
-      !pp(2, 5) = -hxd*2.0d0*ng*r1*q31/f1*sin311
-      !pp(2, 6) = -hxd*2.0d0*ng*r1*q31*f3/f1*cos311
+      !pp(2, 5) = -hxd*2.0d0*nharm*r1*q31/f1*sin311
+      !pp(2, 6) = -hxd*2.0d0*nharm*r1*q31*f3/f1*cos311
       !
       !!pp(3,1) = 0
       !!pp(3,2) = 0
-      !pp(3, 3) = 1.0d0 + hxd*q32*ng
-      !pp(3, 4) = -hxd*q32*(i2*(x2i*sin2 + x2r*cos2) + 2.0d0*ng*r2*f3*sin322)
-      !pp(3, 5) = -hxd*2.0d0*ng*r2*q32*cos322
-      !pp(3, 6) = hxd*2.0d0*ng*r2*q32*f3*sin322
+      !pp(3, 3) = 1.0d0 + hxd*q32*nharm
+      !pp(3, 4) = -hxd*q32*(i2*(x2i*sin2 + x2r*cos2) + 2.0d0*nharm*r2*f3*sin322)
+      !pp(3, 5) = -hxd*2.0d0*nharm*r2*q32*cos322
+      !pp(3, 6) = hxd*2.0d0*nharm*r2*q32*f3*sin322
       !
       !!pp(4,1) = 0
       !!pp(4,2) = 0
-      !pp(4, 3) = hxd*q32/(f2**2)*(i2*(x2r*cos2 + x2i*sin2) + 2.0d0*ng*r2*f3*sin322)
-      !pp(4, 4) = 1.0d0 - hxd*q32/f2*(i2*(-x2r*sin2 + x2i*cos2) - 2.0d0*ng*r2*f3*cos322)
-      !pp(4, 5) = -hxd*2.0d0*ng*r2*q32/f2*sin322
-      !pp(4, 6) = -hxd*2.0d0*ng*r2*q32*f3/f2*cos322
+      !pp(4, 3) = hxd*q32/(f2**2)*(i2*(x2r*cos2 + x2i*sin2) + 2.0d0*nharm*r2*f3*sin322)
+      !pp(4, 4) = 1.0d0 - hxd*q32/f2*(i2*(-x2r*sin2 + x2i*cos2) - 2.0d0*nharm*r2*f3*cos322)
+      !pp(4, 5) = -hxd*2.0d0*nharm*r2*q32/f2*sin322
+      !pp(4, 6) = -hxd*2.0d0*nharm*r2*q32*f3/f2*cos322
       !
       !pp(5, 1) = -hxd*a1*cos13
       !pp(5, 2) = hxd*a1*f1*sin13
@@ -695,33 +812,33 @@ contains
       !pp(6, 5) = hxd/(f3**2)*(a1*f1*sin13 + a2*f2*sin23)
       !pp(6, 6) = 1.0d0 + hxd/f3*(a1*f1*cos13 + a2*f2*cos23)
 
-      pp(1, 1) = hxd*ng*q31 + 1.0D0
-      pp(1, 2) = -hxd*q31*(i1*(x1r*cos1 + x1i*sin1) - f3*ng*r1*sin(phi131)*2.0D0)
+      pp(1, 1) = hxd*nharm*q31 + 1.0D0
+      pp(1, 2) = -hxd*q31*(i1*(x1r*cos1 + x1i*sin1) - f3*nharm*r1*sin(phi131)*2.0D0)
       !pp(1, 3) = 0.0D0
       !pp(1, 4) = 0.0D0
-      pp(1, 5) = hxd*ng*q31*r1*cos(phi131)*(-2.0D0)
-      pp(1, 6) = f3*hxd*ng*q31*r1*sin(phi131)*(-2.0D0)
+      pp(1, 5) = hxd*nharm*q31*r1*cos(phi131)*(-2.0D0)
+      pp(1, 6) = f3*hxd*nharm*q31*r1*sin(phi131)*(-2.0D0)
 
-      pp(2, 1) = hxd*q31*(1.0D0/f1**2*i1*(x1r*cos1 + x1i*sin1) - 1.0D0/f1**2*f3*ng*r1*sin(phi131)*2.0D0)
-      pp(2, 2) = -hxd*q31*((i1*(x1i*cos1 - x1r*sin1))/f1 - (f3*ng*r1*cos(phi131)*2.0D0)/f1) + 1.0D0
+      pp(2, 1) = hxd*q31*(1.0D0/f1**2*i1*(x1r*cos1 + x1i*sin1) - 1.0D0/f1**2*f3*nharm*r1*sin(phi131)*2.0D0)
+      pp(2, 2) = -hxd*q31*((i1*(x1i*cos1 - x1r*sin1))/f1 - (f3*nharm*r1*cos(phi131)*2.0D0)/f1) + 1.0D0
       !pp(2, 3) = 0.0D0
       !pp(2, 4) = 0.0D0
-      pp(2, 5) = (hxd*ng*q31*r1*sin(phi131)*2.0D0)/f1
-      pp(2, 6) = (f3*hxd*ng*q31*r1*cos(phi131)*(-2.0D0))/f1
+      pp(2, 5) = (hxd*nharm*q31*r1*sin(phi131)*2.0D0)/f1
+      pp(2, 6) = (f3*hxd*nharm*q31*r1*cos(phi131)*(-2.0D0))/f1
 
       !pp(3, 1) = 0.0D0
       !pp(3, 2) = 0.0D0
-      pp(3, 3) = hxd*ng*q32 + 1.0D0
-      pp(3, 4) = -hxd*q32*(i2*(x2r*cos2 + x2i*sin2) - f3*ng*r2*sin(phi232)*2.0D0)
-      pp(3, 5) = hxd*ng*q32*r2*cos(phi232)*(-2.0D0)
-      pp(3, 6) = f3*hxd*ng*q32*r2*sin(phi232)*(-2.0D0)
+      pp(3, 3) = hxd*nharm*q32 + 1.0D0
+      pp(3, 4) = -hxd*q32*(i2*(x2r*cos2 + x2i*sin2) - f3*nharm*r2*sin(phi232)*2.0D0)
+      pp(3, 5) = hxd*nharm*q32*r2*cos(phi232)*(-2.0D0)
+      pp(3, 6) = f3*hxd*nharm*q32*r2*sin(phi232)*(-2.0D0)
 
       !pp(4, 1) = 0.0D0
       !pp(4, 2) = 0.0D0
-      pp(4, 3) = hxd*q32*(1.0D0/f2**2*i2*(x2r*cos2 + x2i*sin2) - 1.0D0/f2**2*f3*ng*r2*sin(phi232)*2.0D0)
-      pp(4, 4) = -hxd*q32*((i2*(x2i*cos2 - x2r*sin2))/f2 - (f3*ng*r2*cos(phi232)*2.0D0)/f2) + 1.0D0
-      pp(4, 5) = (hxd*ng*q32*r2*sin(phi232)*2.0D0)/f2
-      pp(4, 6) = (f3*hxd*ng*q32*r2*cos(phi232)*(-2.0D0))/f2
+      pp(4, 3) = hxd*q32*(1.0D0/f2**2*i2*(x2r*cos2 + x2i*sin2) - 1.0D0/f2**2*f3*nharm*r2*sin(phi232)*2.0D0)
+      pp(4, 4) = -hxd*q32*((i2*(x2i*cos2 - x2r*sin2))/f2 - (f3*nharm*r2*cos(phi232)*2.0D0)/f2) + 1.0D0
+      pp(4, 5) = (hxd*nharm*q32*r2*sin(phi232)*2.0D0)/f2
+      pp(4, 6) = (f3*hxd*nharm*q32*r2*cos(phi232)*(-2.0D0))/f2
 
       pp(5, 1) = -a1*hxd*cos13
       pp(5, 2) = a1*f1*hxd*sin13
@@ -788,6 +905,7 @@ contains
             f(j, it) = r(j)
          end do
          xout = xout + dt
+         nt = it
          it = it + 1
          pressed = peekcharqq()
          if (pressed) then
@@ -1010,11 +1128,11 @@ contains
          a1 = a(1)
          a2 = a(2)
 
-         !s(1) = (-ng*f1 + i1*(-x1i*cos1 + x1r*sin1) + 2*r1*ng*f3*dcos(phi3 - phi1 - th1))*q31
-         w(1, ii) = -2*dcir1*q3 + (i1/f1*(x1r*cos1 + x1i*sin1) + 2*r1*ng*(f3/f1)*dsin(phi3 - phi1 - th1))*q31
+         !s(1) = (-nharm*f1 + i1*(-x1i*cos1 + x1r*sin1) + 2*r1*nharm*f3*dcos(phi3 - phi1 - th1))*q31
+         w(1, ii) = -2*dcir1*q3 + (i1/f1*(x1r*cos1 + x1i*sin1) + 2*r1*nharm*(f3/f1)*dsin(phi3 - phi1 - th1))*q31
 
-         !s(3) = (-ng*f2 + i2*(-x2i*cos2 + x2r*sin2) + 2*r2*ng*f3*dcos(phi3 - phi2 - th2))*q32
-         w(2, ii) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*ng*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
+         !s(3) = (-nharm*f2 + i2*(-x2i*cos2 + x2r*sin2) + 2*r2*nharm*f3*dcos(phi3 - phi2 - th2))*q32
+         w(2, ii) = -2*dcir2*q3 + (i2/f2*(x2r*cos2 + x2i*sin2) + 2*r2*nharm*(f3/f2)*dsin(phi3 - phi2 - th2))*q32
 
          !s(5) = -f3 + a1*f1*dcos(phi1 - phi3) + a2*f2*dcos(phi2 - phi3)
          w(3, ii) = a1*f1/f3*dsin(phi1 - phi3) + a2*f2/f3*dsin(phi2 - phi3)
