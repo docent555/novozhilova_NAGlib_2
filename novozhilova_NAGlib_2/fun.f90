@@ -949,7 +949,7 @@ contains
          !call zs(r, pex, cl1(it), lhs1(it), rhs1(it), cl2(it), lhs2(it), rhs2(it))
          eta(:, it) = eff(pex)
          etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
-         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f5.3,a,f5.3,a,\,a)') 't =', xout, &
+         write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f9.5,a,f9.5,a,f9.5,a,f5.3,a,f5.3,a,\,a)') 't =', xout, &
             '  |f1| =', r(1), '  |f2| =', r(3), '  |f3| =', r(5), '  e1 =', eta(1, it), '  e2 =', eta(2, it), &
             '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c1 =', dabs(cl1(it)/rhs1(it))*100, '%  c2 =', dabs(cl2(it)/rhs2(it)*100), '%', char(13)
          do j = 1, n
