@@ -327,6 +327,10 @@ contains
       read (unit=1, nml=param, err=102)
       close (unit=1)
 
+      dtr1 = dtr(1)
+      dtr2 = dtr(2)
+      i1 = icu(1)
+      i2 = icu(2)
       f10 = f(1, nt)
       f20 = f(3, nt)
       f30 = f(5, nt)
