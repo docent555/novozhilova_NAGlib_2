@@ -17,7 +17,7 @@ module fun
 
    integer(c_int), allocatable, target :: idxre(:, :), idxim(:, :), iwork(:), idxp(:, :)
    complex(c_double_complex), allocatable, target :: u(:), mean(:)
-   real(c_double), allocatable, target :: tax(:), zax(:), eta(:, :), etag(:, :), w(:, :), f(:, :), p(:, :), &
+   real(c_double), allocatable, target :: tax(:), zax(:), eta(:, :), etag(:, :), w(:, :),  w_monitr(:, :), f(:, :), p(:, :), &
                                           phi(:, :), phios(:, :), wos(:, :), &
                                           pgot(:), ppgot(:), pmax(:), thres(:), workp(:), work(:), dp2dz(:, :), mean2(:, :), &
                                           cl1(:), lhs1(:), rhs1(:), cl2(:), lhs2(:), rhs2(:)
@@ -244,7 +244,7 @@ contains
       allocate (f(6, nt), p(neqp, nz), u(nz), tax(nt), zax(nz), mean(nz), eta(2, nt), etag(2, nt), w(3, nt), &
                 idxre(2, ne), idxim(2, ne), pgot(neqp), ppgot(neqp), pmax(neqp), thres(neqp), workp(lenwrk), work(lwork), &
                 iwork(liwork), wos(3, nt), phi(3, nt), phios(3, nt), dp2dz(2*ne, nz), idxp(2, ne), mean2(2, nz - 1), &
-                cl1(nt), lhs1(nt), rhs1(nt), cl2(nt), lhs2(nt), rhs2(nt), stat=err_alloc)
+                cl1(nt), lhs1(nt), rhs1(nt), cl2(nt), lhs2(nt), rhs2(nt), w_monitr(3, nt), stat=err_alloc)
 
       if (err_alloc /= 0) then
          print *, "allocation error"
@@ -259,7 +259,7 @@ contains
 
       integer(c_int) err_dealloc
 
-      deallocate (f, p, u, tax, zax, mean, eta, etag, w, stat=err_dealloc)
+      deallocate (f, p, u, tax, zax, mean, eta, etag, w, w_monitr, stat=err_dealloc)
 
       if (err_dealloc /= 0) then
          print *, "deallocation error"
@@ -366,7 +366,7 @@ contains
       elseif (wc .eq. .false.) then
          call freq()
          print *, 'Frequency calculated from RHS. ( WC = ', wc, ')'
-      end if
+      end if      
 
       phi(:, 1) = 0; 
       do i = 2, nt
@@ -406,20 +406,20 @@ contains
 
       open (3, file='cl1.dat')
       do i = 1, nt
-         write (3, '(5e17.8)') tax(i), cl1(i), lhs1(i), rhs1(i), abs(cl1(i)/lhs1(i))
+         write (3, '(5f12.6,a)') tax(i), cl1(i), lhs1(i), rhs1(i), abs(cl1(i)/lhs1(i))*100, ' %'
       end do
       close (3)
 
       open (3, file='cl2.dat')
       do i = 1, nt
-         write (3, '(5e17.8)') tax(i), cl2(i), lhs2(i), rhs2(i), abs(cl2(i)/lhs2(i))
+         write (3, '(5f12.6,a)') tax(i), cl2(i), lhs2(i), rhs2(i), abs(cl2(i)/lhs2(i))*100, ' %'
       end do
       close (3)
 
       open (1, file='F.dat')
       do i = 1, nt
          !write (1, '(4e17.8)') tax(i), dabs(f(1, i)), dabs(f(3, i)), dabs(f(5, i))
-         write (1, '(4e17.8)') tax(i), f(1, i), f(3, i), f(5, i)
+         write (1, '(4f12.6)') tax(i), f(1, i), f(3, i), f(5, i)
       end do
       close (1)
 
@@ -428,39 +428,45 @@ contains
          fcomp(1) = f(2*1 - 1, i)*cdexp(ic*f(2*1, i))
          fcomp(2) = f(2*2 - 1, i)*cdexp(ic*f(2*2, i))
          fcomp(3) = f(2*3 - 1, i)*cdexp(ic*f(2*3, i))
-         write (13, '(7e17.8)') tax(i), dreal(fcomp(1)), dimag(fcomp(1)), dreal(fcomp(2)), dimag(fcomp(2)), &
+         write (13, '(7f12.6)') tax(i), dreal(fcomp(1)), dimag(fcomp(1)), dreal(fcomp(2)), dimag(fcomp(2)), &
             dreal(fcomp(3)), dimag(fcomp(3))
       end do
       close (13)
 
       open (2, file='E.dat')
       do i = 1, nt
-         write (2, '(5e17.8)') tax(i), eta(1, i), etag(1, i), eta(2, i), etag(2, i)
+         write (2, '(5f12.6)') tax(i), eta(1, i), etag(1, i), eta(2, i), etag(2, i)
       end do
       close (2)
 
+      open (3, file='WS.dat')
+      do i = 1, nt
+         write (3, '(4f12.6)') tax(i), w(1, i), w(2, i), w(3, i)
+      end do
+      close (3)
+      
       open (3, file='W.dat')
       do i = 1, nt
-         write (3, '(4e17.8)') tax(i), w(1, i), w(2, i), w(3, i)
+         write (3, '(4f12.6)') tax(i), w_monitr(1, i), w_monitr(2, i), w_monitr(3, i)
       end do
       close (3)
 
       open (1, file='P.dat')
       do i = 1, nt
          !write (1, '(4e17.8)') tax(i), phi(1, i), phi(2, i), phi(3, i)
-         write (1, '(4e17.8)') tax(i), f(2, i), f(4, i), f(6, i)
+         write (1, '(4f12.6)') tax(i), f(2, i), f(4, i), f(6, i)
       end do
       close (1)
 
       open (1, file='POS.dat')
       do i = 1, nt
-         write (1, '(4e17.8)') tax(i), phios(1, i), phios(2, i), phios(3, i)
+         write (1, '(4f12.6)') tax(i), phios(1, i), phios(2, i), phios(3, i)
       end do
       close (1)
 
       open (3, file='WOS.dat')
       do i = 1, nt - 1
-         write (3, '(4e17.8)') tax(i + 1), wos(1, i), wos(2, i), wos(3, i)
+         write (3, '(4f12.6)') tax(i + 1), wos(1, i), wos(2, i), wos(3, i)
       end do
       close (3)
 
@@ -955,9 +961,12 @@ contains
          etag(:, it) = pitch**2/(pitch**2 + 1)*eta(:, it)
          write (*, '(a,f8.3,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f9.5,a,f9.5,a,f9.5,a,f5.3,a,f5.3,a,\,a)') 't =', xout, &
             '  |f1| =', r(1), '  |f2| =', r(3), '  |f3| =', r(5), '  e1 =', eta(1, it), '  e2 =', eta(2, it), &
-            '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c1 =', dabs(cl1(it)/rhs1(it))*100, '%  c2 =', dabs(cl2(it)/rhs2(it)*100), '%', char(13)
+            '  w1 = ', ydot(2), '  w2 = ', ydot(4), '  w3 = ', ydot(6), '  c1 = ', dabs(cl1(it)/rhs1(it))*100, '%  c2 = ', dabs(cl2(it)/rhs2(it)*100), '%', char(13)
          do j = 1, n
             f(j, it) = r(j)
+         end do
+         do j = 1, 3
+            w_monitr(j, it) = ydot(2*j)
          end do
          xout = xout + dt
          nt = it
